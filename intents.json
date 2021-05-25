@@ -1,0 +1,83 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Hello",
+        "Hiya",
+        "Hi",
+        "hello",
+        "hey",
+        "hi",
+        "good day",
+        "Greetings",
+        "What's up?",
+        "How is it going?"
+      ],
+      "responses": [
+        "Hello!",
+        "Hey!",
+        "What can I do for you?"
+      ]
+    },
+    {
+      "tag": "Name",
+      "patterns": [
+        "What is your name?",
+        "Name?"
+      ],
+      "responses": [
+        "Hello! I'm ChatAI"
+      ]
+    },
+    {
+      "tag": "Nonsense",
+      "patterns": [
+        "Who are you?",
+        "you are?",
+        "What are you?",
+        "what are you.",
+        "you are?",
+        "Are you a robot"
+      ],
+      "responses": [
+        "Well, based on our velocity and entry angle . .  . I concur.  We rad.",
+        "Mikey: - Part imitation crab?",
+        "Raph: We're ninjas! Leo's got his mad skills, nobody flips better than Mikey, Donnie's got that big old brain, and I got, uh -- \nApril: A friend who knows where there's a room full of weapons."
+      ]
+    },
+    {
+      "tag": "Goodbye",
+      "patterns": [
+        "Bye",
+        "Bye bye!",
+        "See you later",
+        "See you soon",
+        "Talk to you later",
+        "I’ve got to get going ",
+        "I must be going",
+        "Take it easy",
+        "I’m off",
+        "I look forward to our next meeting"
+      ],
+      "responses": [
+        "Goodbye!",
+        "Bye bye!"
+      ]
+    },
+    {
+      "tag": "Food",
+      "patterns": [
+        "What are we eating?",
+        "Food?",
+        "Where’s our free grub, noodle man?",
+        "What should I get to eat?",
+        "I'm hungry"
+      ],
+      "responses": [
+        "How bout some ... hot soup?",
+        "Pizza?"
+      ]
+    }
+  ]
+}
