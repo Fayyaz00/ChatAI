@@ -22,3 +22,13 @@ python chatbox.py
 ```
 
 Training creates `words.pkl`, `classes.pkl`, and `chatbotmodel.h5` locally. Retrain after changing `intents.json`. Press Ctrl+C (or send EOF) to exit the chat.
+
+## Tests
+
+Run the automated tests without trained model files or TensorFlow:
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+A full smoke test requires a working TensorFlow installation and the NLTK data above. Run `python training.py`, then `python chatbox.py`; try a greeting, an unknown phrase, and Ctrl+C or EOF to exit.

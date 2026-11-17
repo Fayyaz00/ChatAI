@@ -1,67 +1,127 @@
-import random
 import json
 import pickle
-import numpy as np
-
-import nltk
-from nltk.stem import WordNetLemmatizer
-
-from tensorflow.keras.models import load_model
-
-lemmatizer = WordNetLemmatizer()
-intents = json.loads(open('intents.json').read())
-
-words = pickle.load(open('words.pkl', 'rb'))
-classes = pickle.load(open('classes.pkl', 'rb'))
-model = load_model('chatbotmodel.h5')
+import random
+import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 
-def clean_up_sentence(sentence):
-    sentence_words = nltk.word_tokenize(sentence)
-    sentence_words = [lemmatizer.lemmatize(word.lower()) for word in sentence_words]
-    return sentence_words
+FALLBACK_RESPONSE = "I'm not sure how to respond to that."
+ERROR_THRESHOLD = 0.25
 
 
-def bag_of_words(sentence):
-    sentence_words = clean_up_sentence(sentence)
-    bag = [0] * len(words)
-    for w in sentence_words:
-        for i, word in enumerate(words):
-            if word == w:
-                bag[i] = 1
-    return np.array(bag)
+class StartupError(Exception):
+    """An actionable problem that prevents the chatbot from starting."""
 
 
-def predict_class(sentence):
-    bow = bag_of_words(sentence)
-    res = model.predict(np.array([bow]), verbose=0)[0]
-    ERROR_THRESHOLD = 0.25
-    results = [[i, r] for i, r in enumerate(res) if r > ERROR_THRESHOLD]
+@dataclass
+class Chatbot:
+    intents: dict
+    words: list
+    classes: list
+    model: object
+    tokenize: object
+    lemmatize: object
+    array: object
 
-    results.sort(key=lambda x: x[1], reverse=True)
-    return_list = []
-    for r in results:
-        return_list.append({"intent": classes[r[0]], 'probability': str(r[1])})
-    return return_list
+    def clean_up_sentence(self, sentence):
+        return [self.lemmatize(word.lower()) for word in self.tokenize(sentence)]
+
+    def bag_of_words(self, sentence):
+        sentence_words = set(self.clean_up_sentence(sentence))
+        return [int(word in sentence_words) for word in self.words]
+
+    def predict_class(self, sentence):
+        bag = self.bag_of_words(sentence)
+        if not any(bag):
+            return []
+        probabilities = self.model.predict(self.array([bag]), verbose=0)[0]
+        results = [
+            {"intent": self.classes[index], "probability": str(probability)}
+            for index, probability in sorted(
+                enumerate(probabilities), key=lambda item: item[1], reverse=True
+            )
+            if probability > ERROR_THRESHOLD
+        ]
+        return results
+
+    def respond(self, sentence):
+        return get_response(self.predict_class(sentence), self.intents)
 
 
 def get_response(intents_list, intents_json):
     if not intents_list:
-        return "I'm not sure how to respond to that."
+        return FALLBACK_RESPONSE
     tag = intents_list[0]['intent']
-    list_of_intents = intents_json['intents']
-    for i in list_of_intents:
-        if i['tag'] == tag:
-            return random.choice(i['responses'])
-    return "I'm not sure how to respond to that."
+    for intent in intents_json['intents']:
+        if intent['tag'] == tag:
+            return random.choice(intent['responses'])
+    return FALLBACK_RESPONSE
 
 
-if __name__ == "__main__":
-    print("Go! Bot is running! Press Ctrl+C to exit.")
+def load_chatbot(directory=Path('.')):
+    """Load the trained artifacts and check dependencies before starting chat."""
+    directory = Path(directory)
+    artifact_names = ('words.pkl', 'classes.pkl', 'chatbotmodel.h5')
+    missing = [name for name in artifact_names if not (directory / name).is_file()]
+    if missing:
+        raise StartupError(
+            f"Missing model files: {', '.join(missing)}. "
+            "Run 'python training.py' from the repository directory."
+        )
+    try:
+        import nltk
+        import numpy as np
+        from nltk.stem import WordNetLemmatizer
+        from tensorflow.keras.models import load_model
+    except ImportError as exc:
+        raise StartupError(
+            "Could not load a required dependency. Run 'python -m pip install -r "
+            "requirements.txt' and check that TensorFlow can run on this system. "
+            f"Details: {exc}"
+        ) from exc
+
+    lemmatizer = WordNetLemmatizer()
+    try:
+        nltk.word_tokenize('test')
+        lemmatizer.lemmatize('tests')
+    except LookupError as exc:
+        raise StartupError(
+            "Missing NLTK language data. Run 'python -m nltk.downloader "
+            "punkt punkt_tab wordnet'."
+        ) from exc
+
+    try:
+        with (directory / 'intents.json').open(encoding='utf-8') as file:
+            intents = json.load(file)
+        with (directory / 'words.pkl').open('rb') as file:
+            words = pickle.load(file)
+        with (directory / 'classes.pkl').open('rb') as file:
+            classes = pickle.load(file)
+        model = load_model(directory / 'chatbotmodel.h5')
+    except (OSError, ValueError, pickle.UnpicklingError, EOFError) as exc:
+        raise StartupError(
+            f"Could not load chatbot data: {exc}. Check intents.json and run "
+            "'python training.py' to regenerate the model files."
+        ) from exc
+    return Chatbot(intents, words, classes, model, nltk.word_tokenize,
+                   lemmatizer.lemmatize, np.array)
+
+
+def main():
+    try:
+        chatbot = load_chatbot()
+    except StartupError as exc:
+        print(f'Cannot start chatbot: {exc}', file=sys.stderr)
+        return 1
+    print('Go! Bot is running! Press Ctrl+C to exit.')
     try:
         while True:
-            message = input("")
-            ints = predict_class(message)
-            print(get_response(ints, intents))
+            print(chatbot.respond(input('')))
     except (EOFError, KeyboardInterrupt):
-        print("\nGoodbye!")
+        print('\nGoodbye!')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
