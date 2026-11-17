@@ -18,7 +18,7 @@ model = load_model('chatbotmodel.h5')
 
 def clean_up_sentence(sentence):
     sentence_words = nltk.word_tokenize(sentence)
-    sentence_words = [lemmatizer.lemmatize(word) for word in sentence_words]
+    sentence_words = [lemmatizer.lemmatize(word.lower()) for word in sentence_words]
     return sentence_words
 
 
@@ -30,12 +30,11 @@ def bag_of_words(sentence):
             if word == w:
                 bag[i] = 1
     return np.array(bag)
-    #
 
 
 def predict_class(sentence):
     bow = bag_of_words(sentence)
-    res = model.predict(np.array([bow]))[0]
+    res = model.predict(np.array([bow]), verbose=0)[0]
     ERROR_THRESHOLD = 0.25
     results = [[i, r] for i, r in enumerate(res) if r > ERROR_THRESHOLD]
 
@@ -47,18 +46,22 @@ def predict_class(sentence):
 
 
 def get_response(intents_list, intents_json):
+    if not intents_list:
+        return "I'm not sure how to respond to that."
     tag = intents_list[0]['intent']
     list_of_intents = intents_json['intents']
     for i in list_of_intents:
         if i['tag'] == tag:
-            result = random.choice(i['responses'])
-            break
-    return result
+            return random.choice(i['responses'])
+    return "I'm not sure how to respond to that."
 
 
-print("Go! Bot is running!")
-while True:
-    message = input("")
-    ints = predict_class(message)
-    res = get_response(ints, intents)
-    print(res)
+if __name__ == "__main__":
+    print("Go! Bot is running! Press Ctrl+C to exit.")
+    try:
+        while True:
+            message = input("")
+            ints = predict_class(message)
+            print(get_response(ints, intents))
+    except (EOFError, KeyboardInterrupt):
+        print("\nGoodbye!")
